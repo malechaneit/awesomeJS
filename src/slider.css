@@ -1,0 +1,13 @@
+.gallery-container {
+    width: 100%;
+    overflow: hidden;
+}
+
+.gallery-track {
+    position: relative;
+    overflow: hidden;
+}
+
+img {
+    float: left;
+}
