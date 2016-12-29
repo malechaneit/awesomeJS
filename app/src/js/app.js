@@ -5,6 +5,7 @@
   //=require 'routes/*.js'
   //=require 'lib/*.js'
   //=require 'middlewares/*.js'
+  //=require 'classes/*.js'
 
   /// firebase initialization
   const firebaseConfig = {

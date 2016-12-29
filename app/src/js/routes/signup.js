@@ -29,13 +29,33 @@ function signup(ctx, next) {
     errorsContainer.innerHTML = '';
   }
 
+  function showPreloader() { // Ask how to move outside
+    signUpForm.classList.add('is-loading');
+    submit.disabled = true;
+  }
+
+  function hidePreloder() {
+    signUpForm.classList.remove('is-loading');
+    submit.disabled = false;
+  }
+
   function onUserCreationError(error) {
-    showErrors(error.message);
+    collectErrors(error);
+    //showErrors(error.message);
+    hidePreloder();
+  }
+
+  function collectErrors(error) {
+    if(error.message) {
+
+      console.log(error.message);
+      //errors.push(error.message);
+    }
   }
 
   function onUserCreated() {
     console.log('Success');
-    hidePreloder(form);
+    hidePreloder();
     return page.redirect('/profile');
   }
 
@@ -70,16 +90,6 @@ function signup(ctx, next) {
         .createUserWithEmailAndPassword(email.value, password.value)
         .then(onUserCreated)
         .catch(onUserCreationError);
-
-    function showPreloader() { // Ask how to move outside
-      signUpForm.classList.add('is-loading');
-      submit.disabled = true;
-    }
-
-    function hidePreloder() {
-      signUpForm.classList.remove('is-loading');
-      submit.disabled = false;
-    }
 
   }
 
