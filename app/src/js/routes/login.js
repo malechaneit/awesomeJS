@@ -1,10 +1,28 @@
-function login() {
-  render('login');
+function login(ctx, next) {
+  if (ctx.user) {
+    return page.redirect('/profile');
+  }
 
-  const loginForm = document.forms['login-form'];
-  const field = loginForm.elements.email;
+  render('login', ctx);
 
-  window.field = new FormField(field.parentNode, {
-    validate: 'maxLength[10]'
+  new VForm('#login-form', {
+    fields: {
+      'email': {
+        validate: ['required', 'email']
+      },
+      'password': {
+        validate: 'required'
+      }
+    },
+    onValid: (f) => {
+      const { email, password } = f.serialize();
+
+      firebase.auth()
+        .signInWithEmailAndPassword(email, password)
+        .then(() => {
+          page.redirect('/');
+        })
+        .catch(defaultErrorHandler);
+    }
   });
 }

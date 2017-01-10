@@ -1,30 +1,35 @@
 'use strict';
 
-(() => {
+(function() {
 
-  //=require 'routes/*.js'
+  //=require 'firebase.config.js'
+
+  try {
+    firebase.initializeApp(firebaseConfig || {});
+  } catch (err) {
+    alert(
+      `Please, add src/js/firebase.config.js file with the following content:
+      "const firebaseConfig = { ... };"`
+    );
+  }
+
   //=require 'lib/*.js'
-  //=require 'middlewares/*.js'
   //=require 'classes/*.js'
-
-  /// firebase initialization
-  const firebaseConfig = {
-    apiKey: "AIzaSyDxqaqwSuRSplsYujTYRSOJpWjpiYPPxbE",
-    authDomain: "instaprjct-49b5e.firebaseapp.com",
-    databaseURL: "https://instaprjct-49b5e.firebaseio.com",
-    storageBucket: "instaprjct-49b5e.appspot.com",
-    messagingSenderId: "220366328900"
-  };
-  firebase.initializeApp(firebaseConfig);
+  //=require 'middlewares/*.js'
+  //=require 'routes/*.js'
 
   const { location, history, templates } = window;
   const rootElement = qs('#root');
 
-  function render(tplName, data = {}) {
-    const user = firebase.auth().currentUser;
-    const userData = user ? user.toJSON() : null;
-    data = Object.assign(data, { user: userData });
-    rootElement.innerHTML = templates[tplName](data);
+  /**
+   * Render template with given name
+   *
+   * @param  {string}      - Template name.
+   * @param  {...[Object]} - One or more contexts.
+   * @return {Void}
+   */
+  function render(tplName, ...data) {
+    rootElement.innerHTML = templates[tplName](Object.assign({}, ...data));
   }
 
   function render404() {
@@ -37,6 +42,8 @@
   page('/logout', logout);
   page('/signup', signup);
   page('/profile', profile);
+  page('/profile/edit', profileEdit);
+  page('/add', add);
   page('*', render404);
 
   render('preloader');
@@ -47,4 +54,4 @@
     unsubsribe();
   });
 
-})();
+} ());

@@ -1,97 +1,121 @@
 function signup(ctx, next) {
-  //if (ctx.user) {
-  //  return page.redirect('/profile');
-  //}
-
-  render('signup');
-
-  const signUpForm = document.forms['signup-form'];
-  const submit = qs('button', signUpForm); // Ask how to get button of target form
-  const errorsContainer = qs('#errors', signUpForm);
-  const auth = firebase.auth();
-
-  function renderErrors(errors = []) {
-    return errors.map(err => {
-          return `
-            <li class="list-group-item list-group-item-danger">
-              <span>${err}</span>
-            </li>`;
-      }).join('');
-  }
-
-  function showErrors(errors = []) {
-    errorsContainer.innerHTML = renderErrors(errors);
-    errorsContainer.hidden = false;
-  }
-
-  function hideErrors() {
-    errorsContainer.hidden = true;
-    errorsContainer.innerHTML = '';
-  }
-
-  function showPreloader() { // Ask how to move outside
-    signUpForm.classList.add('is-loading');
-    submit.disabled = true;
-  }
-
-  function hidePreloder() {
-    signUpForm.classList.remove('is-loading');
-    submit.disabled = false;
-  }
-
-  function onUserCreationError(error) {
-    collectErrors(error);
-    //showErrors(error.message);
-    hidePreloder();
-  }
-
-  function collectErrors(error) {
-    if(error.message) {
-
-      console.log(error.message);
-      //errors.push(error.message);
-    }
-  }
-
-  function onUserCreated() {
-    console.log('Success');
-    hidePreloder();
+  if (ctx.user) {
     return page.redirect('/profile');
   }
 
+  render('signup', ctx);
 
-  function handler(e) {
+  const auth       = firebase.auth();
+  const signupForm = document.forms['signup-form'];
 
-    e.preventDefault();
+  new VForm(signupForm, {
+    fields: {
+      'email': {
+        validate: ['required', 'email']
+      },
+      'username': {
+        validate: ['required', 'minLength[3]', 'maxLength[30]'],
+        customValidator: (val) => {
+          return /^[a-zA-Z0-9_]+$/.test(val)
+            || 'Username can contain only letters and numbers';
+        }
+      },
+      'displayName': {
+        validate: 'maxLength[100]'
+      },
+      'password': {
+        validate: ['required', 'minLength[6]']
+      },
+      'passwordConfirm': {
+        validate: 'required',
+        customValidator: (val) => {
+          return val === signupForm.elements['password'].value
+            || 'Wrong value. Must be the same as in "Password" field';
+        }
+      }
+    },
+    onValid: submit
+  });
 
-    const form = e.target;
-    const { email, password, password_confirm } = form.elements;
-    const errors = [];
+  /**
+   * @param  {VForm} f - VForm class instance
+   * @return {Void}
+   */
+  function submit(f) {
+    const formData = f.serialize();
+    const { username } = formData;
 
-    if (email.value.indexOf('@') === -1) {
-      errors.push('Email is invalid');
-    }
+    f.setLoadingState();
 
-    if (!password.value.length) {
-      errors.push('Please enter password');
-    } else if (password.value !== password_confirm.value) {
-      errors.push('Password is incorrect');
-    }
-
-    if (errors.length) {
-      return showErrors(errors);
-    }
-
-    hideErrors();
-
-    showPreloader();
-
-    auth
-        .createUserWithEmailAndPassword(email.value, password.value)
-        .then(onUserCreated)
-        .catch(onUserCreationError);
-
+    checkIfUserExist(username,
+      // if not exist create new
+      () => createNewUser(f, formData),
+      // if already exist
+      () => {
+        f.resetState().setErrorState();
+        alert(`Username "${username}" is already in use. Please, try again with another name.`);
+      }
+    ).catch(err => {
+      f.resetState().setErrorState();
+      defaultErrorHandler(err);
+    });
   }
 
-  signUpForm.addEventListener('submit', handler);
+  /**
+   * @param  {string} username
+   * @param  {Function} cbNo  - Callback if user with given username not exist.
+   * @param  {Function} cbYes - Callback if user with given username exist.
+   * @return {Void}
+   */
+  function checkIfUserExist(username, cbNo = noop, cbYes = noop) {
+    return firebase
+      .database()
+      .ref('users')
+      .orderByChild('username')
+      .equalTo(username)
+      .once('value', snapshot => {
+        const val = snapshot.val();
+        val ? cbYes(val) : cbNo();
+      });
+  }
+
+  /**
+   * @param  {VForm} f     - VForm class instance.
+   * @param  {Object} data - Serialized form data.
+   * @return {Void}
+   */
+  function createNewUser(f, data) {
+    console.log('creation');
+    const { email, password, username, displayName } = data;
+
+    auth
+      .createUserWithEmailAndPassword(email, password)
+      // update firebase internal user's displayName
+      .then(user => {
+        user.updateProfile({ displayName });
+        user.sendEmailVerification();
+        return user;
+      })
+      // create user in our database
+      .then(user => {
+        const { uid, photoURL } = user;
+        return firebase
+          .database()
+          .ref(`users/${uid}`)
+          .set({ uid, username, displayName, photoURL });
+      })
+      // when user was successfull created
+      .then(() => {
+        f.resetState().setSuccessState();
+        setTimeout(() => {
+          f.element.reset();
+          page.redirect('/');
+        }, 1000);
+      })
+      // when something going wrong
+      .catch(err => {
+        f.resetState().setErrorState();
+        defaultErrorHandler(err);
+      });
+  }
 }
